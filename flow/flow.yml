@@ -1,0 +1,11 @@
+agents:
+  - 
+    name: fnaa-1
+    fqdn: fnaa.unix.ar
+    username: test
+    password: test
+
+namespaces:
+  - 
+    name: flow.unix.ar
+    agent: fnaa-1
