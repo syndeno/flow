@@ -476,6 +476,10 @@ func handleSubscribe(e *Endpoint, conn net.Conn, rw *bufio.ReadWriter, scanner *
 	log.Println("FULL COMMAND: " + scanner.Text())
 	log.Println(strings.Split(scanner.Text(), " "))
 	flowName := strings.Split(scanner.Text(), " ")[1]
+
+	// First, check if namespace if local
+
+	//Namespace is local, creating subscription
 	log.Println("Creating flow endpoint " + flowName)
 	log.Println("Creating new topic ksdj898." + flowName + " in Apache Kafka instance kafka_local")
 	log.Println("Creating Flow Processor src=" + flowName + " dst=ksdj898." + flowName)
@@ -483,7 +487,7 @@ func handleSubscribe(e *Endpoint, conn net.Conn, rw *bufio.ReadWriter, scanner *
 
 	log.Println("Flow enabled ksdj898." + flowName)
 
-	_, err := rw.WriteString("220 OK ksdj898." + flowName + "\r\n")
+	_, err := rw.WriteString("220 DATA\r\n")
 	if err != nil {
 		log.Println("Write BYE failed.", err)
 	}
@@ -491,6 +495,27 @@ func handleSubscribe(e *Endpoint, conn net.Conn, rw *bufio.ReadWriter, scanner *
 	if err != nil {
 		log.Println("Flush failed.", err)
 	}
+
+	_, err = rw.WriteString("ksdj898." + flowName + "\r\n")
+	if err != nil {
+		log.Println("Write BYE failed.", err)
+	}
+	err = rw.Flush()
+	if err != nil {
+		log.Println("Flush failed.", err)
+	}
+
+	_, err = rw.WriteString("220 OK\r\n")
+	if err != nil {
+		log.Println("Write BYE failed.", err)
+	}
+	err = rw.Flush()
+	if err != nil {
+		log.Println("Flush failed.", err)
+	}
+
+	//Namespace is not local, creating a new remote
+
 	return
 }
 

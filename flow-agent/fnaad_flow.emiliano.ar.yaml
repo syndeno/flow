@@ -1,0 +1,43 @@
+port: 51000
+nameserver: 172.17.0.2
+
+nameservers:
+  - 
+      name: dns_int
+      host: ns1.emiliano.ar
+      keyfile: "./tsig.key"
+  - 
+      name: dns_ext
+      host: ns1.emiliano.ar
+      keyfile: "./tsig.key"
+
+brokers:
+  - 
+    name: kafka_local
+    type: kafka
+    bootstrap-servers: kf1.emiliano.ar:9092
+    user: inwx
+    password: test
+    topic_sufix: fnaa.emiliano.ar
+    topic_prefix: fnaa-1.emiliano.ar_
+
+namespaces:
+  - 
+    name: flow.emiliano.ar
+    broker: kafka_local
+    ns_private: dns-int
+    ns_public: dns-ext
+
+flows:
+  -
+    uri: time.flow.emiliano.ar
+    namespace: flow.emiliano.ar
+
+#TODO
+#kubernetes:
+#  kubeconfig: kube.config
+#  resources_prefix: 
+#manifests:
+#  subscription:
+#    gitRepo:
+#    filename:

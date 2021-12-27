@@ -1,0 +1,38 @@
+port: 61000
+nameserver: 172.17.0.2
+
+nameservers:
+  - 
+      name: dns_int
+      host: ns1.unix.ar
+      keyfile: "./tsig.key"
+  - 
+      name: dns_ext
+      host: ns1.unix.ar
+      keyfile: "./tsig.key"
+
+brokers:
+  - 
+    name: kafka_local
+    type: kafka
+    bootstrap-servers: kf1.unix.ar:9092
+    user: inwx
+    password: test
+    topic_sufix: fnaa.unix.ar
+    topic_prefix: fnaa-1.unix.ar_
+
+namespaces:
+  - 
+    name: flows.unix.ar
+    broker: kafka_local
+    ns_private: dns-int
+    ns_public: dns-ext
+
+#TODO
+#kubernetes:
+#  kubeconfig: kube.config
+#  resources_prefix: 
+#manifests:
+#  subscription:
+#    gitRepo:
+#    filename:

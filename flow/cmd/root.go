@@ -126,7 +126,7 @@ func initConfig() {
 
 		// Search config in home directory with name ".flow" (without extension).
 		viper.AddConfigPath(home)
-		// viper.SetConfigName(".flow.yml")
+		viper.SetConfigName(".flow.yml")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match

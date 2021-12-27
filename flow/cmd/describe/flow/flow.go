@@ -5,9 +5,7 @@ import (
 	"flow/cmd/config"
 	"fmt"
 	"log"
-	"net"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/miekg/dns"
@@ -15,17 +13,26 @@ import (
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
-
 var FlowDescribeCmd = &cobra.Command{
 	Use:   "flow",
 	Short: "A brief description of your command",
 	Long:  `A longer description`,
 	Run: func(cmd *cobra.Command, args []string) {
 		debug, _ := cmd.Flags().GetBool("debug")
-		log.Printf("*Debug %v", debug)
+		nameserver, _ := cmd.Flags().GetString("nameserver")
+
+		if len(nameserver) == 0 {
+			conf, err := dns.ClientConfigFromFile("/etc/resolv.conf")
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(2)
+			}
+			nameserver = conf.Servers[0]
+		}
 
 		if debug {
+			log.Printf("*Debug %v", debug)
+			log.Printf("*nameserver %v", nameserver)
 			log.Println("*Create flow")
 		}
 
@@ -33,9 +40,8 @@ var FlowDescribeCmd = &cobra.Command{
 		err := viper.Unmarshal(&cfg)
 		if err != nil {
 			log.Printf("unable to decode into struct, %v\n", err)
-		} else {
-			// fmt.Printf("Config loaded: %v\n", config)
 		}
+
 		// fmt.Println("viper.GetString(\"agents\"))")
 		// for _, agent := range config.Agents {
 		// 	fmt.Printf("Agent name: %v\n", agent.Name)
@@ -156,7 +162,7 @@ var FlowDescribeCmd = &cobra.Command{
 			log.Printf("Creating new flow %v", flowNew)
 			log.Printf("Resolving FNAA FQDN %v", agentConfig.Fqdn)
 		}
-		server, result := serviceResolve(agentConfig.Fqdn+".", "@172.17.0.4")
+		server, result := client.ServiceResolve(agentConfig.Fqdn+".", nameserver)
 		if !result {
 			log.Printf("Error: Could not resolve SRV RR for FQDN %v", agentConfig.Fqdn)
 			os.Exit(1)
@@ -167,7 +173,7 @@ var FlowDescribeCmd = &cobra.Command{
 		if debug {
 			log.Printf("FNAA FQDN Resolved to %v port %v", server.Host, server.Port)
 		}
-		address, result := addressResolve(server.Host, "@172.17.0.4")
+		address, result := client.AddressResolve(server.Host, nameserver)
 		if !result {
 			log.Printf("Error: Could not resolve A RR for FQDN %v", server.Host)
 			os.Exit(1)
@@ -238,7 +244,7 @@ var FlowDescribeCmd = &cobra.Command{
 
 		log.Printf("Quitting")
 		command = "QUIT"
-		response, err = client.SendCommand(conn, rw, command)
+		_, err = client.SendCommand(conn, rw, command)
 		if err != nil {
 			log.Printf("Error: Send command %v to FNAA %v failed, %v", command, server.Host, err)
 			os.Exit(1)
@@ -267,158 +273,7 @@ func init() {
 	// when this action is called directly.
 	// FlowCreateCmd.Flags().BoolP("debug", "d", false, "Enable debug")
 
-	FlowDescribeCmd.Flags().String("agent", "", "Port to run Application server on")
+	FlowDescribeCmd.Flags().String("nameserver", "", "Override system nameserver")
 	// viper.BindPFlag("agent", FlowCreateCmd.Flags().Lookup("agent"))
 
-}
-
-func serviceResolve(fqdn string, nameserver string) (fnaaServer, bool) {
-	log.Println("**Starting FQDN resolution")
-
-	var (
-		// qtype  []uint16
-		// qclass []uint16
-		qname []string
-	)
-
-	qname = append(qname, fqdn)
-
-	if len(nameserver) == 0 {
-		conf, err := dns.ClientConfigFromFile("/etc/resolv.conf")
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(2)
-		}
-		nameserver = "@" + conf.Servers[0]
-	}
-
-	nameserver = string([]byte(nameserver)[1:]) // chop off @
-	port := 53
-	log.Printf("**Nameserver to be used: %v", nameserver)
-
-	if nameserver[0] == '[' && nameserver[len(nameserver)-1] == ']' {
-		nameserver = nameserver[1 : len(nameserver)-1]
-	}
-	if i := net.ParseIP(nameserver); i != nil {
-		nameserver = net.JoinHostPort(nameserver, strconv.Itoa(port))
-	} else {
-		nameserver = dns.Fqdn(nameserver) + ":" + strconv.Itoa(port)
-	}
-
-	server := fnaaServer{}
-	// server.Host = "time.flows.unix.ar"
-	// server.Port = 1
-	log.Printf("**Resolving SRV for %v using server %v", fqdn, nameserver)
-
-	answer := executeQuery(nameserver, dns.TypeSRV, qname[0])
-	for _, a := range answer {
-		if srv, ok := a.(*dns.SRV); ok {
-			server.Port = int(srv.Port)
-			server.Host = string(srv.Target)
-			// log.Printf("**%s\n", srv.String())
-
-			// answer = executeQuery(nameserver, dns.TypePTR, ptr.Ptr)
-			// for _, a := range answer {
-			// 	if ptr, ok = a.(*dns.PTR); ok {
-			// 		fmt.Printf("**%s\n", ptr.String())
-
-			// 		answer = executeQuery(nameserver, dns.TypeSRV, ptr.Ptr)
-			// 		for _, b := range answer {
-			// 			if srv, ok := b.(*dns.SRV); ok {
-			// 				fmt.Printf("**%s\n", srv.String())
-			// 			}
-			// 		}
-			// 		answer = executeQuery(nameserver, dns.TypeTXT, ptr.Ptr)
-			// 		for _, b := range answer {
-			// 			if srv, ok := b.(*dns.TXT); ok {
-			// 				fmt.Printf("**%s\n", srv.String())
-			// 			}
-			// 		}
-			// 	}
-			// }
-		} else {
-			return server, false
-		}
-	}
-
-	return server, true
-}
-
-type fnaaServer struct {
-	Host string
-	Port int
-}
-
-func addressResolve(fqdn string, nameserver string) (string, bool) {
-	log.Println("**Starting Address resolution")
-
-	var (
-		// qtype  []uint16
-		// qclass []uint16
-		qname []string
-	)
-
-	qname = append(qname, fqdn)
-
-	if len(nameserver) == 0 {
-		conf, err := dns.ClientConfigFromFile("/etc/resolv.conf")
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(2)
-		}
-		nameserver = "@" + conf.Servers[0]
-	}
-
-	nameserver = string([]byte(nameserver)[1:]) // chop off @
-	port := 53
-	log.Printf("**Nameserver to be used: %v", nameserver)
-
-	if nameserver[0] == '[' && nameserver[len(nameserver)-1] == ']' {
-		nameserver = nameserver[1 : len(nameserver)-1]
-	}
-	if i := net.ParseIP(nameserver); i != nil {
-		nameserver = net.JoinHostPort(nameserver, strconv.Itoa(port))
-	} else {
-		nameserver = dns.Fqdn(nameserver) + ":" + strconv.Itoa(port)
-	}
-
-	log.Printf("**Resolving A for %v using server %v", fqdn, nameserver)
-
-	var address string
-	answer := executeQuery(nameserver, dns.TypeA, qname[0])
-	for _, a := range answer {
-		if ar, ok := a.(*dns.A); ok {
-			address = string(ar.A.String())
-
-		} else {
-			return address, false
-		}
-	}
-
-	log.Printf("**Resolved A to %v for %v using server %v", address, fqdn, nameserver)
-
-	return address, true
-}
-
-func executeQuery(nameserver string, qtype uint16, qname string) []dns.RR {
-	log.Printf("***Executing query %v IN %v using server %v", qname, qtype, nameserver)
-
-	c := new(dns.Client)
-	m := new(dns.Msg)
-	m.SetQuestion(qname, qtype)
-
-	m.RecursionDesired = true
-	r, _, err := c.Exchange(m, nameserver)
-	if err != nil {
-		log.Printf("***Contacting nameserver resulted in error: %v", err)
-		return nil
-	}
-	if r.Rcode != dns.RcodeSuccess {
-		log.Println("***Executing query did not return Rcode Success")
-		return nil
-	}
-
-	log.Printf("***Executing successful: %v", r.Answer)
-
-	return r.Answer
 }

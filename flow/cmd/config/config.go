@@ -15,6 +15,7 @@ type Agent struct {
 	Fqdn     string `mapstructure:"fqdn"`
 	Username string `mapstructure:"username"`
 	Password string `mapstructure:"password"`
+	Prefix   string `mapstructure:"prefix"`
 }
 
 // type Namespaces struct {

@@ -312,16 +312,6 @@ func ServiceResolve(fqdn string, nameserver string) (fnaaServer, bool) {
 
 	qname = append(qname, fqdn)
 
-	// if len(nameserver) == 0 {
-	// 	conf, err := dns.ClientConfigFromFile("/etc/resolv.conf")
-	// 	if err != nil {
-	// 		fmt.Fprintln(os.Stderr, err)
-	// 		os.Exit(2)
-	// 	}
-	// 	nameserver = "@" + conf.Servers[0]
-	// }
-
-	// nameserver = string([]byte(nameserver)[1:]) // chop off @
 	port := 53
 	log.Printf("**Nameserver to be used: %v", nameserver)
 
@@ -340,36 +330,28 @@ func ServiceResolve(fqdn string, nameserver string) (fnaaServer, bool) {
 	server := fnaaServer{}
 	// server.Host = "time.flows.unix.ar"
 	// server.Port = 1
-	log.Printf("**Resolving SRV for %v using server %v", fqdn, nameserver)
+	log.Printf("**#Resolving SRV for %v using server %v", fqdn, nameserver)
 
 	answer := ExecuteQuery(nameserver, dns.TypeSRV, qname[0])
 	for _, a := range answer {
 		if srv, ok := a.(*dns.SRV); ok {
 			server.Port = int(srv.Port)
 			server.Host = string(srv.Target)
-			// log.Printf("**%s\n", srv.String())
 
-			// answer = executeQuery(nameserver, dns.TypePTR, ptr.Ptr)
-			// for _, a := range answer {
-			// 	if ptr, ok = a.(*dns.PTR); ok {
-			// 		fmt.Printf("**%s\n", ptr.String())
+		}
+	}
 
-			// 		answer = executeQuery(nameserver, dns.TypeSRV, ptr.Ptr)
-			// 		for _, b := range answer {
-			// 			if srv, ok := b.(*dns.SRV); ok {
-			// 				fmt.Printf("**%s\n", srv.String())
-			// 			}
-			// 		}
-			// 		answer = executeQuery(nameserver, dns.TypeTXT, ptr.Ptr)
-			// 		for _, b := range answer {
-			// 			if srv, ok := b.(*dns.TXT); ok {
-			// 				fmt.Printf("**%s\n", srv.String())
-			// 			}
-			// 		}
-			// 	}
-			// }
-		} else {
-			return server, false
+	if server.Host == "" || server.Port == 0 {
+		log.Printf("**Error Resolving SRV for %v using server %v", "fnaa._flow._tcp."+fqdn, nameserver)
+		answer = ExecuteQuery(nameserver, dns.TypeSRV, "fnaa._flow._tcp."+qname[0])
+		for _, a := range answer {
+			if srv, ok := a.(*dns.SRV); ok {
+				server.Port = int(srv.Port)
+				server.Host = string(srv.Target)
+
+			} else {
+				return server, false
+			}
 		}
 	}
 

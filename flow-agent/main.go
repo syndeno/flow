@@ -3,14 +3,15 @@ package main
 // install libpam0g-dev in ubuntu
 
 import (
-	"log"
-
-	"flow-agent/fnaa_client"
-	"flow-agent/fnaa_server"
-
-	"github.com/pkg/errors"
-
 	"flag"
+	"flow-agent/config"
+	"flow-agent/server"
+	"log"
+	"os"
+
+	"github.com/mitchellh/go-homedir"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 /*
@@ -24,28 +25,54 @@ to the host specified by the flag value.
 Try "localhost" or "127.0.0.1" when running both processes on the same machine.
 
 */
-const (
-	Port = ":61000"
-)
+// const (
+// 	Port = ":61000"
+// )
 
 // main
 func main() {
 
-	connect := flag.String("connect", "", "IP address of process to join. If empty, go into listen mode.")
+	cfgFile := flag.String("config", "", "Configuration file")
+
+	// flag.String("nameserver", "", "Nameserver to use")
+	// flag.String("user", "", "Nameserver to use")
+	// flag.String("password", "", "Nameserver to use")
+
 	flag.Parse()
 
-	// If the connect flag is set, go into client mode.
-	if *connect != "" {
-		err := fnaa_client.Client(*connect, Port)
+	if *cfgFile != "" {
+		// Use config file from the flag.
+		// fmt.Println("Setting config file from flag --config " + cfgFile)
+		log.Printf("Using config file: %v", *cfgFile)
+
+		viper.SetConfigFile(*cfgFile)
+	} else {
+		// Find home directory.
+		home, err := homedir.Dir()
 		if err != nil {
-			log.Println("Error:", errors.WithStack(err))
+			log.Println(err)
+			os.Exit(1)
 		}
-		log.Println("Client done.")
-		return
+
+		// Search config in home directory with name ".flow" (without extension).
+		viper.AddConfigPath(home)
+		viper.SetConfigName("/etc/fnaa/fnaad.yml")
 	}
 
-	// Else go into server mode.
-	err := fnaa_server.Server(Port)
+	viper.AutomaticEnv() // read in environment variables that match
+	// log.Println(viper.ReadInConfig())
+	// If a config file is found, read it in.
+	if err := viper.ReadInConfig(); err == nil {
+		log.Println("\tUsing config file:", viper.ConfigFileUsed())
+	}
+	cfg := config.Config{}
+	err := viper.Unmarshal(&cfg)
+	if err != nil {
+		log.Println("Error:", errors.WithStack(err))
+	}
+
+	// Go into server mode.
+	err = server.Server(cfg)
 	if err != nil {
 		log.Println("Error:", errors.WithStack(err))
 	}
