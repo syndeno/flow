@@ -1,0 +1,21 @@
+agents:
+  - 
+    name: fnaa-unix
+    fqdn: fnaa.unix.ar
+    username: test
+    password: test
+    prefix: unix.ar-
+  - 
+    name: fnaa-emiliano
+    fqdn: fnaa.emiliano.ar
+    username: test
+    password: test
+    prefix: emiliano.ar-
+
+namespaces:
+  - 
+    name: flows.unix.ar
+    agent: fnaa-unix
+  - 
+    name: flows.emiliano.ar
+    agent: fnaa-emiliano 
