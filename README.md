@@ -3,7 +3,7 @@ This codebase includes an implementation for the FNAA and FNUA components of the
 
 This is based on <https://github.com/syndeno/draft-spinella-event-streaming-open-network>
 
-#Introduction
+# Introduction
 We will focus on providing a minimum implementation of the main Event Streaming Open Network component: the Flow Namespace Accessing Agent. This implementation should serve as a Proof of Concept of the overall Event Streaming Open Network proposal.
 
 As described in the previous section, the Flow Namespace Accessing Agent (FNAA) is the main and core required component for the Open Network. All Network Participants must deploy an FNAA server instance in order to be part of the network. The FNAA actually implements a server-like application for the Flow Namespace Accessing Protocol (FNAP). Then, the first objective of this Proof of Concept is to show an initial implementation of the FNAA server component.
